@@ -1,5 +1,5 @@
 """
-    This module contains the class NutritionScraper which is used to scrape nutritional from 
+    This module contains the class NutritionScraper which is used to scrape nutritional information from 
     the UCSC website
 """
 import re
@@ -10,7 +10,7 @@ import urllib3
 from tqdm import tqdm
 
 class NutritionScraper():
-    """This class """
+    """This class provides functions to scrape the nutritional information from the UCSC dining website"""
     def __init__(self):
         urllib3.disable_warnings()
     date = datetime.datetime.now()
