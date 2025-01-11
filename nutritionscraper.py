@@ -104,13 +104,13 @@ class NutritionScraper():
         Returns:
             A string containing the amount of the given macronutrient.
         """
-        #gets index of the nutrient
+        # gets index of the nutrient
         find_index = response.find(nutrient_name)
-        #gets substring containing nutrient info
+        # gets substring containing nutrient info
         nutrient_string = response[find_index:find_index + 100]
-        #gets index of end of nutrient amount
+        # gets index of end of nutrient amount
         find_index_2 = nutrient_string.find("g")
-        #finds index of start of nutrient amount
+        # finds index of start of nutrient amount
         i = find_index_2
         while True:
             if nutrient_string[i:i+1] == ">":
@@ -122,12 +122,12 @@ class NutritionScraper():
             if i == 0:
                 break
         return_str = nutrient_string[i:find_index_2]
-        #checks if nutrient is in milligrams or grams
+        # checks if nutrient is in milligrams or grams
         if return_str[len(return_str)-1:] == "m":
             return return_str
         return return_str
 
-    #r eturns number of calories in nutrition label
+    # returns number of calories in nutrition label
     def get_calories(self, response):
         """Returns a string with the amount of calories on the given nutrition label
         
