@@ -1,11 +1,18 @@
-import requests
+"""
+    This module contains the class NutritionScraper which is used to scrape nutritional from 
+    the UCSC website
+"""
 import re
-import json
 import datetime
+import json
+import requests
+import urllib3
 from tqdm import tqdm
 
 class NutritionScraper():
-    
+    """This class """
+    def __init__(self):
+        urllib3.disable_warnings()
     date = datetime.datetime.now()
     linkPrefix = "https://nutrition.sa.ucsc.edu/"
     mainLink = "https://nutrition.sa.ucsc.edu/longmenu.aspx?sName=UC+Santa+Cruz+Dining&locationNum=40&locationName="
@@ -36,7 +43,7 @@ class NutritionScraper():
     # - Menu (global village)
     meal = "Lunch"
 
-    #header to be used for scraping
+    # header to be used for scraping
     headerString = """
     accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
     accept-encoding: gzip, deflate, br, zstd
@@ -56,17 +63,18 @@ class NutritionScraper():
     user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36
     """.strip()
 
-    # returns link to main nutrition website
-    def getMainLink(self):
-        return ( self.mainLink + 
-                self.getDiningHallLink(self.locationName) + 
-                self.datePrefix + 
-                self.monthString + 
-                self.dayString + 
-                self.yearString + 
-                self.meal ) 
+    def get_main_link(self):
+        """Returns link to main nutrition website"""
+        return ( self.mainLink +
+                self.get_dining_hall_link(self.locationName) +
+                self.datePrefix +
+                self.monthString +
+                self.dayString +
+                self.yearString +
+                self.meal )
 
-    def getDiningHallLink(self, name):
+    def get_dining_hall_link(self, name):
+        """Converts Dining Hall name into URL form"""
         s = ""
         words = name.split()
         for word in words:
@@ -79,101 +87,118 @@ class NutritionScraper():
         return s[:len(s)-1]
 
     # puts headerString into key value pairs
-    def getCleanHeader(self, inputStr):
-        headerList = [[item for item in rowString.split(": ")] for rowString in inputStr.split("\n")]
-        headers = {x[0].strip():x[1].strip() for x in headerList}
+    def get_clean_header(self, input_str):
+        """Converts headerString into a dictionary"""
+        header_list = [list(rowString.split(": ")) for rowString in input_str.split("\n")]
+        headers = {x[0].strip():x[1].strip() for x in header_list}
         return headers
-    
+
     # returns macronutrient in nutrition label
-    def findMacronutrient(self, response, nutrientName):
+    def find_macronutrient(self, response, nutrient_name):
+        """Returns the amount of a specified nutrient
+        
+        Args:
+            response: The text from the scraped nutrition label.
+            nutrient_name: The name of the nutrient which will be found.
+        
+        Returns:
+            A string containing the amount of the given macronutrient.
+        """
         #gets index of the nutrient
-        findIndex = response.find(nutrientName)
+        find_index = response.find(nutrient_name)
         #gets substring containing nutrient info
-        nutrientString = response[findIndex:findIndex + 100]
+        nutrient_string = response[find_index:find_index + 100]
         #gets index of end of nutrient amount
-        findIndex2 = nutrientString.find("g")
+        find_index_2 = nutrient_string.find("g")
         #finds index of start of nutrient amount
-        i = findIndex2
-        while(True):
-            if nutrientString[i:i+1] == ">":
+        i = find_index_2
+        while True:
+            if nutrient_string[i:i+1] == ">":
                 i += 1
                 break
-            elif nutrientString[i:i+1] == "-":
+            if nutrient_string[i:i+1] == "-":
                 return "0"
             i -= 1
             if i == 0:
                 break
-        returnStr = nutrientString[i:findIndex2]
+        return_str = nutrient_string[i:find_index_2]
         #checks if nutrient is in milligrams or grams
-        if(returnStr[len(returnStr)-1:] == "m"):
-            return returnStr
-        return returnStr
+        if return_str[len(return_str)-1:] == "m":
+            return return_str
+        return return_str
 
-    #returns number of calories in nutrition label
-    def getCalories(self, response):
-        findIndexCalories = response.find("Calories")
-        calorieString = response[findIndexCalories:findIndexCalories+100]
-        findIndex2 = calorieString.find("p;")
-        i = findIndex2 + 2
-        while(True):
-            if calorieString[i:i+1] == "<":
+    #r eturns number of calories in nutrition label
+    def get_calories(self, response):
+        """Returns a string with the amount of calories on the given nutrition label
+        
+        Args:
+            response: The text from the scraped nutrition label.
+        Returns:
+            A string containing the amount of calories on the given nutrition label
+        """
+        find_index_calories = response.find("Calories")
+        calorie_string = response[find_index_calories:find_index_calories+100]
+        find_index_2 = calorie_string.find("p;")
+        i = find_index_2 + 2
+        while True:
+            if calorie_string[i:i+1] == "<":
                 break
             i += 1
             if i == 1000:
                 break
-        return calorieString[findIndex2+2:i]
-    
-        
-    #returns dictionary of macronutrients and the amount of said macronutrient
-    def getAllMacros(self, response):
-        macroList = ["Total Fat", "Tot. Carb.", "Protein"]
+        return calorie_string[find_index_2+2:i]
+
+
+    # returns dictionary of macronutrients and the amount of said macronutrient
+    def get_all_macros(self, response):
+        """Returns dictionary containing the macronutrients of a given nutrition label"""
+        macro_list = ["Total Fat", "Tot. Carb.", "Protein"]
         macros = {}
-        macros["Calories"] = float(self.getCalories(response))
-        for macro in macroList:
-            macros[macro] = float(self.findMacronutrient(response,macro))
+        macros["Calories"] = float(self.get_calories(response))
+        for macro in macro_list:
+            macros[macro] = float(self.find_macronutrient(response,macro))
         return macros
 
-    def addPrefix(self, string):
-        return self.linkPrefix + string 
-    def scrapeNutrition(self):
-        headers = self.getCleanHeader(self.headerString)
-        responseMain = requests.get(self.getMainLink(), headers=headers, verify=False)
+    def add_prefix(self, string):
+        """Returns a string with the link prefix prepended to the given string"""
+        return self.linkPrefix + string
+    def scrape_nutrition(self):
+        """Scrapes the nutritional info of a given time period from a given UCSC dining hall 
+        and dumps the result into a JSON
+        """
+        headers = self.get_clean_header(self.headerString)
+        response_main = requests.get(self.get_main_link(), headers=headers, verify=False, timeout=2)
 
         f = open("output.html", "w")
-        f.write(responseMain.text)
-        print(responseMain.headers)
+        f.write(response_main.text)
+        print(response_main.headers)
         f.close()
 
         f = open("output.html", "r")
-        htmlString = f.read()
+        html_string = f.read()
         # responseMain = requests.get(mainLink, headers=headers)
 
         # regex pattern to pull links from file
-        linkPattern = r"'(label\.aspx\?[^']*)\'"
+        link_pattern = r"'(label\.aspx\?[^']*)\'"
         # regex pattern to pull food names from file
-        namePattern = r"';\">([^<]+)</a>"
+        name_pattern = r"';\">([^<]+)</a>"
 
-        names = list(re.findall(namePattern, htmlString))
-        links = list(re.findall(linkPattern, htmlString))
-        links = list(map(self.addPrefix, links))
-        nutritionList = []
+        names = list(re.findall(name_pattern, html_string))
+        links = list(re.findall(link_pattern, html_string))
+        links = list(map(self.add_prefix, links))
+        nutrition_list = []
         # loop over each match
         for i in tqdm (range(len(links)), desc="Scraping Nutrition..."):
-            response = requests.get(links[i], headers=headers, verify=False)
-            nutritionInfo = self.getAllMacros(response.text)
-            nutritionList.append(nutritionInfo)
-        nutritionDict = {name:info for (name,info) in zip(names,nutritionList)}
-            
-        dict = {name:link for (name,link) in zip(names,links)}
-        if(len(nutritionDict) == 0):
+            response = requests.get(links[i], headers=headers, verify=False, timeout=2)
+            nutrition_info = self.get_all_macros(response.text)
+            nutrition_list.append(nutrition_info)
+        nutrition_dict = {name:info for (name,info) in zip(names,nutrition_list)}
+        if len(nutrition_dict) == 0:
             print("Error")
         else:
             print("Success!")
         f.close()
         # writes results to json file
         with open("nutritionInfo.json", "w") as f:
-            json.dump(nutritionDict, f, indent=4)
+            json.dump(nutrition_dict, f, indent=4)
         f.close()
-        
-scraper = NutritionScraper()
-scraper.scrapeNutrition()
