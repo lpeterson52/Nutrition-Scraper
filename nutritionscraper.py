@@ -169,12 +169,12 @@ class NutritionScraper():
         headers = self.get_clean_header(self.headerString)
         response_main = requests.get(self.get_main_link(), headers=headers, verify=False, timeout=2)
 
-        f = open("output.html", "w")
+        f = open("output.html", "w", encoding="utf-8")
         f.write(response_main.text)
         print(response_main.headers)
         f.close()
 
-        f = open("output.html", "r")
+        f = open("output.html", "r", encoding="utf-8")
         html_string = f.read()
         # responseMain = requests.get(mainLink, headers=headers)
 
@@ -199,6 +199,6 @@ class NutritionScraper():
             print("Success!")
         f.close()
         # writes results to json file
-        with open("nutritionInfo.json", "w") as f:
+        with open("nutritionInfo.json", "w", encoding="utf-8") as f:
             json.dump(nutrition_dict, f, indent=4)
         f.close()
