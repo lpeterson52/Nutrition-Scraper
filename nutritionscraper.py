@@ -6,17 +6,33 @@ from tqdm import tqdm
 
 date = datetime.datetime.now()
 linkPrefix = "https://nutrition.sa.ucsc.edu/"
-mainLink = "https://nutrition.sa.ucsc.edu/longmenu.aspx?sName=UC+Santa+Cruz+Dining&locationNum=40&locationName=John+R.+Lewis+%26+College+Nine+Dining+Hall&naFlag=1&WeeksMenus=UCSC+-+This+Week%27s+Menus&dtdate="
-#change date.month etc to specific day if you don't want todays menu
-monthString = str(date.month) + "%2f"
-dayString = str(date.day) + "%2f"
-yearString = str(2024) + "&mealName="
+mainLink = "https://nutrition.sa.ucsc.edu/longmenu.aspx?sName=UC+Santa+Cruz+Dining&locationNum=40&locationName="
+locationName = "John R. Lewis Dining Hall & College Nine Dining Hall"
+datePrefix = "&naFlag=1&WeeksMenus=UCSC+-+This+Week%27s+Menus&dtdate="
+# dates
+monthString = str(date.month) + "%2f" # gets current month
+dayString = str(date.day) + "%2f" # gets current day
+yearString = str(date.year) + "&mealName=" # gets current year
+mealsByLocation = {"John R. Lewis Dining Hall & College Nine Dining Hall": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
+                   "Cowell & Stevenson Dining Hall": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
+                   "Crown & Merrill Dining Hall and Banana Joe's": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
+                   "Porter & Kresge Dining Hall": {"Breakfast", "Lunch", "Dinner"},
+                   "Rachel Carson & Oakes Dining Hall": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
+                   "Oakes Cafe": {"Breakfast", "All+Day"},
+                   "Global Village Cafe": {"Menu"},
+                   "Owl's Nest Cafe": {"Breakfast", 'All'},
+                   "Slug Stop": {"Menu"},
+                   "UCen Bistro": {"Menu"},
+                   "Stevenson Coffee House": {"Menu"}}
+
 # Meal Names:
 # - Breakfast
 # - Lunch
 # - Dinner
 # - Late+Night
-meal = "Lunch" 
+# - All+Day (only for Oakes cafe)
+# - Menu (global village)
+meal = "Lunch"
 
 #header to be used for scraping
 headerString = """
@@ -40,7 +56,22 @@ user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 
 #returns link to main nutrition website
 def getMainLink():
-    return mainLink + monthString + dayString + yearString + meal  
+    return mainLink + getDiningHallLink(locationName) + datePrefix + monthString + dayString + yearString + meal  
+
+def getDiningHallLink(name):
+    s = ""
+    words = name.split()
+    for word in words:
+        match word:
+            case "&":
+                s += "%26"
+            case _:
+                s += word
+        s += "+"
+    return s[:len(s)-1]
+        
+
+
 
 #puts headerString into key value pairs
 def getCleanHeader(inputStr):
