@@ -23,16 +23,16 @@ class NutritionScraper():
     dayString = str(date.day) + "%2f" # gets current day
     yearString = str(date.year) + "&mealName=" # gets current year
     mealsByLocation = {"John R. Lewis Dining Hall & College Nine Dining Hall": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
-                    "Cowell & Stevenson Dining Hall": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
-                    "Crown & Merrill Dining Hall and Banana Joe's": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
-                    "Porter & Kresge Dining Hall": {"Breakfast", "Lunch", "Dinner"},
-                    "Rachel Carson & Oakes Dining Hall": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
-                    "Oakes Cafe": {"Breakfast", "All+Day"},
-                    "Global Village Cafe": {"Menu"},
-                    "Owl's Nest Cafe": {"Breakfast", 'All'},
-                    "Slug Stop": {"Menu"},
-                    "UCen Bistro": {"Menu"},
-                    "Stevenson Coffee House": {"Menu"}}
+        "Cowell & Stevenson Dining Hall": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
+        "Crown & Merrill Dining Hall and Banana Joe's": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
+        "Porter & Kresge Dining Hall": {"Breakfast", "Lunch", "Dinner"},
+        "Rachel Carson & Oakes Dining Hall": {"Breakfast", "Lunch", "Dinner", "Late+Night"},
+        "Oakes Cafe": {"Breakfast", "All+Day"},
+        "Global Village Cafe": {"Menu"},
+        "Owl's Nest Cafe": {"Breakfast", 'All'},
+        "Slug Stop": {"Menu"},
+        "UCen Bistro": {"Menu"},
+        "Stevenson Coffee House": {"Menu"}}
 
     # Meal Names:
     # - Breakfast
@@ -168,21 +168,15 @@ class NutritionScraper():
         """
         headers = self.get_clean_header(self.headerString)
         response_main = requests.get(self.get_main_link(), headers=headers, verify=False, timeout=2)
-
-        f = open("output.html", "w", encoding="utf-8")
-        f.write(response_main.text)
-        print(response_main.headers)
-        f.close()
-
-        f = open("output.html", "r", encoding="utf-8")
-        html_string = f.read()
-        # responseMain = requests.get(mainLink, headers=headers)
-
+        with open("output.html", "w", encoding="utf-8") as f:
+            f.write(response_main.text)
+            print(response_main.headers)
+        with open("output.html", "r", encoding="utf-8") as f:
+            html_string = f.read()
         # regex pattern to pull links from file
         link_pattern = r"'(label\.aspx\?[^']*)\'"
         # regex pattern to pull food names from file
         name_pattern = r"';\">([^<]+)</a>"
-
         names = list(re.findall(name_pattern, html_string))
         links = list(re.findall(link_pattern, html_string))
         links = list(map(self.add_prefix, links))
@@ -192,13 +186,11 @@ class NutritionScraper():
             response = requests.get(links[i], headers=headers, verify=False, timeout=2)
             nutrition_info = self.get_all_macros(response.text)
             nutrition_list.append(nutrition_info)
-        nutrition_dict = {name:info for (name,info) in zip(names,nutrition_list)}
+        nutrition_dict = dict(zip(names,nutrition_list))
         if len(nutrition_dict) == 0:
-            print("Error")
+            print("Error, dictionary empty")
         else:
             print("Success!")
-        f.close()
         # writes results to json file
         with open("nutritionInfo.json", "w", encoding="utf-8") as f:
             json.dump(nutrition_dict, f, indent=4)
-        f.close()
