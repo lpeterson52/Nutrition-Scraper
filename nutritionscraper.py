@@ -211,11 +211,11 @@ class NutritionScraper():
             foods.append(curr)
         return foods
         
-    def convert_food_dict_to_json_dumpable(self, food_dict: dict):
-        json_dumpable = {}
+    def convert_food_dict_to_json_dumpable(self, food_dict: dict, line_num_dict):
+        json_dumpable = self.create_category_dict(line_num_dict)
         for category in food_dict:
             for food in food_dict[category]:
-                json_dumpable[category] = food.dict_form
+                json_dumpable[category].append(food.dict_form)
         return json_dumpable
 
 
@@ -281,6 +281,5 @@ class NutritionScraper():
             self.append_food_to_category(category_line_nums, food=food, food_line_num=food_line_num, category_dict=category_dict)
             
         # writes results to json file
-        print(category_dict)
         with open("nutritionInfo.json", "w", encoding="utf-8") as f:
-            json.dump(self.convert_food_dict_to_json_dumpable(category_dict), f, indent=4)
+            json.dump(self.convert_food_dict_to_json_dumpable(category_dict, category_line_nums), f, indent=4)

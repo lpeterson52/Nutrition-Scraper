@@ -5,6 +5,7 @@ import food
 
 def main():
     """Main method"""
+
     scraper = nutritionscraper.NutritionScraper()
     scraper.scrape_nutrition()
 
