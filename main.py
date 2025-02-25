@@ -1,6 +1,7 @@
 """Main Method"""
 
 import nutritionscraper
+import food
 
 def main():
     """Main method"""

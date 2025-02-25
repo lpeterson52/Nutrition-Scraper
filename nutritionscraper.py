@@ -1,12 +1,13 @@
 """
-    This module contains the class NutritionScraper which is used to scrape nutritional information from 
-    the UCSC website
+    This module contains the class NutritionScraper which is used to scrape nutritional information 
+    from the UCSC website
 """
 import re
 import datetime
 import json
 import requests
 import urllib3
+import food
 from tqdm import tqdm
 
 class NutritionScraper():
@@ -73,7 +74,7 @@ class NutritionScraper():
                 self.yearString +
                 self.meal )
 
-    def get_dining_hall_link(self, name):
+    def get_dining_hall_link(self, name: str):
         """Converts Dining Hall name into URL form"""
         s = ""
         words = name.split()
@@ -86,15 +87,66 @@ class NutritionScraper():
             s += "+"
         return s[:len(s)-1]
 
-    # puts headerString into key value pairs
-    def get_clean_header(self, input_str):
+    def get_line_nums_of_categories(self, file_name: str):
+        """Gets each food category and the respective line number and 
+        returns it as a tuple containing two lists"""
+        
+        with open(file_name, "r") as file:
+            html_string = file.read()
+        categories = re.findall(r"--\s*(?!.*\b(Aurora|aspx)\b)(.*?)\s*--", html_string)
+        target_strings = []
+        line_nums = []
+        for tuple in categories:    
+            target_strings.append(tuple[1])  
+        with open(file_name, 'r') as file:
+            for line_number, line in enumerate(file, 1):
+                for target_string in target_strings:
+                    formatted_string = "-- " + target_string + " --"
+                    if formatted_string in line: 
+                        line_nums.append(line_number)
+        return dict(zip(line_nums, target_strings))
+    
+    def append_food_to_category(self, line_num_dict: dict, food, food_line_num: int, category_dict: dict):
+        prev_line_num = None
+        for line_num in sorted(line_num_dict.keys()):  # Ensure the line numbers are sorted
+            if food_line_num > line_num:
+                prev_line_num = line_num
+            else:
+                break  # Stop at the first line number greater than food_line_num
+
+        if prev_line_num is not None:
+            category_dict[line_num_dict[prev_line_num]].append(food)
+
+    
+    def get_line_num_of_food(self, food_name: str, file_name: str):
+        with open(file_name, 'r') as file:
+            for line_number, line in enumerate(file, 1):
+                formatted_name = '>' + food_name + '<'
+                if formatted_name in line: 
+                    return(line_number)
+    
+    def create_category_dict(self, line_num_dict: dict):
+        """Creates a dictionary where the keys are the categories of food and 
+        the pairs are empty lists
+        
+        Args:
+            line_num_dict: dictionary where the keys are line numbers and 
+            the values are the corresponding food. To be passed in from get_line_nums_of_categories
+            
+        Returns:
+            A dictionary where the keys are categories of food and the values are empty lists"""
+        category_dict = {}
+        for line_num in line_num_dict:
+            category_dict[line_num_dict[line_num]] = []
+        return category_dict
+    
+    def get_clean_header(self, input_str: str):
         """Converts headerString into a dictionary"""
         header_list = [list(rowString.split(": ")) for rowString in input_str.split("\n")]
         headers = {x[0].strip():x[1].strip() for x in header_list}
         return headers
-
-    # returns macronutrient in nutrition label
-    def find_macronutrient(self, response, nutrient_name):
+    
+    def find_macronutrient(self, response: str, nutrient_name: str):
         """Returns the amount of a specified nutrient
         
         Args:
@@ -128,7 +180,7 @@ class NutritionScraper():
         return return_str
 
     # returns number of calories in nutrition label
-    def get_calories(self, response):
+    def get_calories(self, response: str):
         """Returns a string with the amount of calories on the given nutrition label
         
         Args:
@@ -147,10 +199,28 @@ class NutritionScraper():
             if i == 1000:
                 break
         return calorie_string[find_index_2+2:i]
+    
+    def convert_nutrition_to_object(self, names: list, nutrition_list: list) -> list:
+        foods = []
+        for i in range(len(names)):
+            calories = nutrition_list[i]["Calories"]
+            total_fat = nutrition_list[i]["Total Fat"]
+            total_carbs = nutrition_list[i]["Tot. Carb."]
+            protein = nutrition_list[i]["Protein"]
+            curr = food.Food(names[i],calories, total_fat, total_carbs, protein)
+            foods.append(curr)
+        return foods
+        
+    def convert_food_dict_to_json_dumpable(self, food_dict: dict):
+        json_dumpable = {}
+        for category in food_dict:
+            for food in food_dict[category]:
+                json_dumpable[category] = food.dict_form
+        return json_dumpable
 
 
     # returns dictionary of macronutrients and the amount of said macronutrient
-    def get_all_macros(self, response):
+    def get_all_macros(self, response: str):
         """Returns dictionary containing the macronutrients of a given nutrition label"""
         macro_list = ["Total Fat", "Tot. Carb.", "Protein"]
         macros = {}
@@ -159,9 +229,10 @@ class NutritionScraper():
             macros[macro] = float(self.find_macronutrient(response,macro))
         return macros
 
-    def add_prefix(self, string):
+    def add_prefix(self, string: str):
         """Returns a string with the link prefix prepended to the given string"""
         return self.linkPrefix + string
+    
     def scrape_nutrition(self):
         """Scrapes the nutritional info of a given time period from a given UCSC dining hall 
         and dumps the result into a JSON
@@ -173,24 +244,43 @@ class NutritionScraper():
             print(response_main.headers)
         with open("output.html", "r", encoding="utf-8") as f:
             html_string = f.read()
+        
+        category_line_nums = self.get_line_nums_of_categories("output.html")
+        
         # regex pattern to pull links from file
         link_pattern = r"'(label\.aspx\?[^']*)\'"
         # regex pattern to pull food names from file
         name_pattern = r"';\">([^<]+)</a>"
+        
+        # gets all names of foods from selected dining hall
         names = list(re.findall(name_pattern, html_string))
+        
+        # gets links to nutrition labels of foods
         links = list(re.findall(link_pattern, html_string))
         links = list(map(self.add_prefix, links))
         nutrition_list = []
-        # loop over each match
+        
+        # loop over each nutrition label to scrape info
         for i in tqdm (range(len(links)), desc="Scraping Nutrition..."):
             response = requests.get(links[i], headers=headers, verify=False, timeout=2)
             nutrition_info = self.get_all_macros(response.text)
             nutrition_list.append(nutrition_info)
+        
         nutrition_dict = dict(zip(names,nutrition_list))
+        
         if len(nutrition_dict) == 0:
             print("Error, dictionary empty")
         else:
             print("Success!")
+        
+        category_dict = self.create_category_dict(category_line_nums)
+        food_objects = self.convert_nutrition_to_object(names, nutrition_list)
+        
+        for food in food_objects:
+            food_line_num = self.get_line_num_of_food(food.name, "output.html")
+            self.append_food_to_category(category_line_nums, food=food, food_line_num=food_line_num, category_dict=category_dict)
+            
         # writes results to json file
+        print(category_dict)
         with open("nutritionInfo.json", "w", encoding="utf-8") as f:
-            json.dump(nutrition_dict, f, indent=4)
+            json.dump(self.convert_food_dict_to_json_dumpable(category_dict), f, indent=4)
